@@ -14,6 +14,8 @@
 
 ## Installation
 
+Either install from pip directly via `pip install bytoken` or build from source (below).
+
 ### 1. Clone the Repository
 
 ```bash
