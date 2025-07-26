@@ -23,5 +23,13 @@ PYBIND11_MODULE(bytoken, m) {
 
         .def("decode", &ByToken::decode,
              py::arg("idx"),
-             "Decode token indices back into a string");
+             "Decode token indices back into a string")
+     
+        .def("save", &ByToken::save,
+             py::arg("path"),
+             "Saves the tokenizer state to a JSON file.")
+
+        .def_static("from_file", &ByToken::from_file,
+             py::arg("path"),
+             "Loads a tokenizer from a JSON file.");
 }

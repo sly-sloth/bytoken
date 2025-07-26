@@ -27,6 +27,9 @@ public:
     void train(std::string text_corpus, int vocab_size, bool verbose = false);
     std::vector<int> encode(std::string text);
     std::string decode(std::vector<int> idx);
+
+    void save(const std::string& path) const;
+    static ByToken from_file(const std::string& path);
 };
 
 // bytoken

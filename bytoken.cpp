@@ -6,6 +6,9 @@
 #include <cmath>
 #include <algorithm>
 #include <set>
+#include <fstream>
+
+#include "nlohmann/json.hpp"
 
 ByToken::ByToken() : vocab_size(0), max_key(0) {
 
@@ -169,4 +172,77 @@ std::string ByToken::decode(std::vector<int> idx)
     }
 
     return decoded_str;
+}
+
+/**
+ * @brief Saves the tokenizer's state to a JSON file.
+ * 
+ * This serializes the vocabulary, merges, and configuration, allowing the
+ * exact state of the trained tokenizer to be reloaded later.
+ * 
+ * @param path The file path where the tokenizer will be saved.
+ */
+void ByToken::save(const std::string& path) const {
+    nlohmann::json j;
+
+    j["config"]["vocab_size"] = this->vocab_size;
+    j["config"]["max_key"] = this->max_key; // for multiple training iterations
+
+    j["model"]["vocab"]["stoi"] = this->stoi;
+    j["model"]["vocab"]["itos"] = this->itos;
+    j["model"]["vocab"]["final_vocab"] = this->final_vocab;
+
+    nlohmann::json merges_json;
+    for (const auto& [pair, merge_id] : this->merges) {
+        std::string key = std::to_string(pair.first) + "," + std::to_string(pair.second);
+        merges_json[key] = merge_id;
+    }
+    j["model"]["merges"] = merges_json;
+
+    std::ofstream o(path);
+    o << j.dump(2, ' ', true, nlohmann::json::error_handler_t::ignore);
+
+    o.close();
+}
+
+/**
+ * @brief Loads a tokenizer from a saved JSON file.
+ * This is a static factory function that constructs a new ByToken instance
+ * by deserializing its state from a file.
+ * 
+ * @param path The file path of the saved tokenizer.
+ * 
+ * @return A new ByToken instance with the loaded state.
+ */
+ByToken ByToken::from_file(const std::string& path) {
+    std::ifstream i(path);
+    if (!i.is_open()) {
+        throw std::runtime_error("Could not open file: " + path);
+    }
+    nlohmann::json j;
+    i >> j;
+
+    ByToken tokenizer;
+
+    tokenizer.vocab_size = j["config"]["vocab_size"].get<int>();
+    tokenizer.max_key = j["config"]["vocab_size"].get<int>();
+
+    tokenizer.stoi = j["model"]["stoi"].get<std::unordered_map<std::string, int>>();
+    tokenizer.itos = j["model"]["itos"].get<std::unordered_map<int, std::string>>();
+    tokenizer.final_vocab = j["model"]["final_vocab"].get<std::vector<std::pair<std::string, int>>>();
+
+    const auto& merges_json = j["model"]["merges"];
+    for (auto it = merges_json.begin(); it != merges_json.end(); ++it) {
+        std::string key_str = it.key();
+        size_t comma_pos = key_str.find(',');
+        if (comma_pos == std::string::npos) continue;
+
+        int first_id = std::stoi(key_str.substr(0, comma_pos));
+        int second_id = std::stoi(key_str.substr(comma_pos + 1));
+        int merge_id = it.value().get<int>();
+
+        tokenizer.merges[std::make_pair(first_id, second_id)] = merge_id;
+    }
+    
+    return tokenizer;
 }
