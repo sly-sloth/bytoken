@@ -26,11 +26,17 @@ void ByToken::train(std::string text_corpus, int vocab_size, bool verbose) {
     this->vocab_size = vocab_size;
     std::set<char> text_corpus_unique(text_corpus.begin(), text_corpus.end());
 
-    if (text_corpus_unique.size() > vocab_size) {
+    // + 1 for <UNK> token
+    if (text_corpus_unique.size() + 1 > vocab_size) {
         std::ostringstream oss;
         oss << "vocab_size (" << vocab_size << ") must be greater than or equal to the number of unique chars (" << text_corpus_unique.size() << ") in the text corpus";
         throw std::runtime_error(oss.str());
     }
+    
+    // adding <UNK> token to vocab
+    stoi["<UNK>"] = max_key;
+    itos[max_key] = "<UNK>";
+    max_key++;
 
     for (char ch : text_corpus_unique) {
         std::string str(1, ch);
@@ -135,6 +141,7 @@ std::vector<int> ByToken::encode(std::string text) {
         }
 
         if (!matched) {
+            encoded_idx.push_back(stoi["<UNK>"]);
             ++pos;
         }
     }
@@ -154,7 +161,11 @@ std::string ByToken::decode(std::vector<int> idx)
     // add support for unsupported/unknown tokens
     std::string decoded_str;
     for (int i : idx) {
-        decoded_str += itos[i];
+        if (itos.count(i)) {
+            decoded_str += itos[i];
+        } else {
+            decoded_str += "<INVALID_ID>";
+        }
     }
 
     return decoded_str;
